@@ -6,7 +6,7 @@ An open-source, local-first notes app where your notes are a galaxy.
 - Notes are stars, related notes form constellations, and a black hole sits at the center.
 - An optional AI companion (Claude, Jev, n8n) helps you work with your notes. Everything works without it.
 
-**Status:** Phase 5. You can open a vault folder, see it as a galaxy, take real notes, have Claude work on them with Jev keeping it fast and safe, and automate routines with n8n:
+**Status:** Phase 6. You can open a vault folder, see it as a galaxy, take real notes, have Claude work on them with Jev keeping it fast and safe, automate routines with n8n, and talk to a floating companion that guides you around your screen:
 
 - 3D galaxy view: notes are stars, top-level folders are constellations, a black hole sits in the middle. Click a star to open it; click the black hole for the dashboard
 - Dashboard: note and link counts, notes by day last edited, notes per constellation, most connected notes, recent activity
@@ -23,6 +23,11 @@ An open-source, local-first notes app where your notes are a galaxy.
   - **Claude builds workflows** in your n8n through n8n's MCP server. It can read your instance and create new workflows, which stay unpublished until you review them. Publishing, running, test runs, editing existing workflows and archiving are refused
   - **Routines:** Galaxy spots dated notes you make every day or on the same weekday (like "Meeting 2026-11-16" every Monday) and offers to automate them. Starter automations: a daily note, a weekly review, and an inbox webhook
   - **Share the vault with n8n:** an optional local endpoint (`http://127.0.0.1:47231/`, needs a token) gives n8n's MCP Client node the same vault tools. Notes n8n writes show up in the app right away
+- Companion:
+  - **Talk:** press **Talk** in the Agent panel, or **Ctrl+Shift+Space** from anywhere, and say what you want. What you said fills the request box; you still press Run
+  - **Voice note:** records and saves what you said as a new note (undo works)
+  - Speech is turned into text on your computer with Whisper; the model (about 80 MB) downloads once on first use. A red indicator, also floating over other apps, shows whenever the microphone is on
+  - **Guide me:** type what you want to do and Galaxy steps aside. The companion looks at your screen and puts a ring on the next thing to click, with one short instruction; press **Next** after each step. It never clicks or types for you, screenshots are never saved, and it refuses to look while a password manager or banking window is open. Each step sends one screenshot to Claude
 
 ### Using the agent
 

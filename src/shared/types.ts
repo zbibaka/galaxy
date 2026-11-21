@@ -9,6 +9,17 @@ export type AgentEvent = { kind: 'text' | 'tool' | 'error'; text: string } | { k
 /** n8n connection: its MCP URL when connected, and whether n8n may use the vault (with the URL and token to give it). */
 export type N8nStatus = { url: string | null; shareOn: boolean; shareUrl: string; shareToken: string | null }
 
+/** Guide mode as the overlay shows it: looking at the screen, thinking, pointing at a step, finished, or failed. */
+export type GuideState =
+  | { mode: 'looking' }
+  | { mode: 'thinking' }
+  | { mode: 'step'; say: string; x: number; y: number }
+  | { mode: 'done'; say: string }
+  | { mode: 'error'; say: string }
+
+/** What the floating companion shows: the microphone indicator and guide mode. */
+export type CompanionState = { listening: boolean; guide: GuideState | null }
+
 /** Jev's suggestion to move a loose note into a constellation (top-level folder). */
 export type Filing = { path: string; folder: string; confidence: number }
 
@@ -47,4 +58,19 @@ export interface GalaxyApi {
   shareVault(on: boolean): Promise<N8nStatus>
   /** Notes changed outside the app (by n8n); returns the unsubscribe function. */
   onVaultChanged(callback: (vault: Vault) => void): () => void
+  /** Speech to text on this computer; `audio` is mono 16 kHz samples. */
+  transcribe(audio: Float32Array): Promise<string>
+  /** Saves a transcribed voice note as a new note; undo with undoAgent. */
+  saveVoiceNote(text: string): Promise<AgentResult>
+  /** Shows or hides the always-on-top microphone indicator. */
+  setListening(on: boolean): void
+  /** The push-to-talk shortcut was pressed; returns the unsubscribe function. */
+  onTalkToggle(callback: () => void): () => void
+  /** Guide mode: minimises Galaxy, looks at the screen and points at the first step. */
+  startGuide(goal: string): Promise<void>
+  nextGuide(): Promise<void>
+  stopGuide(): void
+  /** For the overlay: let its buttons take clicks while the mouse is over them. */
+  setOverlayInteractive(on: boolean): void
+  onCompanion(callback: (state: CompanionState) => void): () => void
 }

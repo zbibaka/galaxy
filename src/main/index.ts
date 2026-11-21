@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } from 'electron'
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, safeStorage, shell } from 'electron'
 import { createHash, randomBytes } from 'node:crypto'
 import { appendFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -6,6 +6,8 @@ import { constellationOf } from '../shared/galaxy'
 import { noteName } from '../shared/links'
 import type { AgentEvent, AgentResult, Filing, N8nStatus, Vault } from '../shared/types'
 import { claudeVersion, runAgent, stopAgent } from './agent'
+import { nextGuideStep, setListening, setOverlayInteractive, startGuide, stopGuide } from './companion'
+import { transcribe } from './speech'
 import { approvalServer, type Decision, writeConcern } from './guard'
 import { routeRequest, suggestFiling } from './jev'
 import { snapshots } from './snapshot'
@@ -291,6 +293,45 @@ ipcMain.handle('agent:undo', async (): Promise<AgentResult> => {
   return { changed, vault: await openVault(root) }
 })
 
+// Phase 6, the companion: voice (transcribed on this computer) and guide mode (one screenshot per step, never stored).
+ipcMain.handle('speech:transcribe', (_event, audio: unknown) => transcribe(audio, userFile('models')))
+ipcMain.on('companion:interactive', (_event, on: unknown) => setOverlayInteractive(on === true))
+ipcMain.on('companion:listening', (_event, on: unknown) => {
+  setListening(on === true)
+  // Push-to-talk may run while Galaxy is behind other windows: bring it back to show what was heard.
+  if (on !== true && mainWindow && !mainWindow.isFocused()) {
+    mainWindow.show()
+    mainWindow.focus()
+  }
+})
+
+ipcMain.handle('voice:save', async (_event, text: unknown): Promise<AgentResult> => {
+  const root = requireVault()
+  if (typeof text !== 'string' || !text.trim()) throw new Error('Nothing was heard')
+  const now = new Date()
+  const two = (n: number): string => String(n).padStart(2, '0')
+  const path = `Voice note ${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())} ${two(now.getHours())}${two(now.getMinutes())}${two(now.getSeconds())}.md`
+  return withSnapshots(root, 'voice note', { voiceNote: path }, async () => {
+    await createNote(root, path)
+    await writeNote(root, path, `# Voice note\n\n${text.trim()}\n`)
+  })
+})
+
+ipcMain.handle('guide:start', async (_event, goal: unknown) => {
+  if (typeof goal !== 'string' || !goal.trim()) throw new Error('Say what you want to do first')
+  startGuide(goal.trim().slice(0, 500))
+  mainWindow?.minimize()
+  await nextGuideStep(userFile('agent'))
+})
+ipcMain.handle('guide:next', () => nextGuideStep(userFile('agent')))
+ipcMain.on('guide:stop', () => {
+  stopGuide()
+  mainWindow?.restore()
+  mainWindow?.focus()
+})
+
+let mainWindow: BrowserWindow | null = null
+
 function createWindow(): void {
   const win = new BrowserWindow({
     width: 1280,
@@ -309,7 +350,13 @@ function createWindow(): void {
     }
   })
 
+  mainWindow = win
   win.once('ready-to-show', () => win.show())
+  win.on('closed', () => {
+    mainWindow = null
+    stopGuide()
+    setListening(false)
+  })
 
   // Links open in the user's browser, never inside the app, and only for web URLs.
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -324,12 +371,18 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   createWindow()
+  // Push-to-talk from anywhere. Global shortcuts have no key-up, so it toggles: press to talk, press again to stop.
+  if (!globalShortcut.register('CommandOrControl+Shift+Space', () => mainWindow?.webContents.send('talk:toggle'))) {
+    console.error('Ctrl+Shift+Space is taken by another app; push-to-talk works from the Agent panel only')
+  }
   // Keep sharing the vault with n8n across restarts if the user left it on.
   void readSettings().then((s) => (s.shareOn ? shareVault(true) : undefined)).catch((e: Error) => console.error('Could not share the vault with n8n:', e.message))
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
+
+app.on('will-quit', () => globalShortcut.unregisterAll())
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()

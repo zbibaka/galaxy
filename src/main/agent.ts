@@ -52,6 +52,32 @@ export function toEvents(msg: StreamMessage): AgentEvent[] {
   return []
 }
 
+/** One question to Claude, images allowed, no tools at all; returns the answer text. Used by guide mode. */
+export async function askClaude(content: object[], system: string, workDir: string): Promise<string> {
+  await mkdir(workDir, { recursive: true })
+  const args = ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--tools', '', '--strict-mcp-config',
+    '--setting-sources', 'user', '--no-session-persistence', '--append-system-prompt', system]
+  return new Promise((done, fail) => {
+    const proc = spawn(CLI, args, { cwd: workDir, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
+    let result: StreamMessage | undefined
+    let stderr = ''
+    proc.stderr.on('data', (d) => (stderr += String(d)))
+    createInterface({ input: proc.stdout }).on('line', (line) => {
+      try {
+        const msg = JSON.parse(line) as StreamMessage
+        if (msg.type === 'result') result = msg
+      } catch {
+        // Not JSON: ignore stray output lines.
+      }
+    })
+    proc.on('error', (error: NodeJS.ErrnoException) =>
+      fail(new Error(error.code === 'ENOENT' ? 'Claude Code is not installed (the `claude` command was not found)' : error.message))
+    )
+    proc.on('close', () => (result && !result.is_error ? done(result.result ?? '') : fail(new Error(result?.result || stderr.trim() || 'Claude did not answer'))))
+    proc.stdin.end(JSON.stringify({ type: 'user', message: { role: 'user', content } }) + '\n')
+  })
+}
+
 let child: ChildProcess | null = null
 
 export const stopAgent = (): void => void child?.kill()

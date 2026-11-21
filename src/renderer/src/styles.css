@@ -703,3 +703,106 @@ button:disabled {
 .agent-log {
   min-height: 140px;
 }
+
+/* Recording indicator, in the panel and on the companion */
+.rec {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.rec-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+
+button.recording {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* The floating companion overlay: transparent everywhere except its pill and pointer */
+html.companion,
+html.companion body,
+html.companion #root {
+  background: transparent;
+  overflow: hidden;
+}
+
+.companion {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.companion .pill {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(720px, calc(100% - 32px));
+  padding: 8px 10px 8px 16px;
+  background: rgb(11 13 20 / 0.94);
+  border: 1px solid var(--glow);
+  border-radius: 999px;
+  font-size: 14px;
+  pointer-events: auto;
+}
+
+.companion .error-text {
+  color: var(--danger);
+}
+
+.companion .pointer {
+  position: absolute;
+}
+
+.companion .ring {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  border: 3px solid var(--glow);
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px rgb(5 6 10 / 0.6), 0 0 18px var(--glow);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.companion .bubble {
+  position: absolute;
+  top: -14px;
+  left: 34px;
+  width: max-content;
+  max-width: 300px;
+  margin: 0;
+  padding: 6px 10px;
+  background: rgb(11 13 20 / 0.94);
+  border: 1px solid var(--glow);
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.companion .bubble.left {
+  left: auto;
+  right: 34px;
+}
+
+@keyframes pulse {
+  50% {
+    transform: scale(1.18);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .companion .ring {
+    animation: none;
+  }
+}

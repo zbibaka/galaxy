@@ -85,6 +85,51 @@ export function Agent({ hidden, notes, onClose, onStart, onDone }: Props) {
     setDecided((d) => ({ ...d, [id]: allow ? 'Allowed' : 'Denied' }))
   }
 
+  // Voice: "talk" puts what you said in the request box; "note" saves it as a new note. Both are transcribed on this computer.
+  const recorder = useRecorder()
+  const [recording, setRecording] = useState<'talk' | 'note' | null>(null)
+  const [hearing, setHearing] = useState(false)
+  const record = async (kind: 'talk' | 'note'): Promise<void> => {
+    if (hearing) return
+    if (!recording) {
+      try {
+        await recorder.start()
+        setRecording(kind)
+        api.setListening(true)
+      } catch (e) {
+        add({ kind: 'error', text: `Could not use the microphone: ${errorText(e)}` })
+      }
+      return
+    }
+    const was = recording
+    setRecording(null)
+    api.setListening(false)
+    setHearing(true)
+    try {
+      const text = await api.transcribe(await recorder.stop())
+      if (!text) add({ kind: 'error', text: 'Nothing was heard' })
+      else if (was === 'talk') suggest(prompt.trim() ? `${prompt.trim()} ${text}` : text)
+      else await act(() => api.saveVoiceNote(text), 'Saved')
+    } catch (e) {
+      add({ kind: 'error', text: errorText(e) })
+    } finally {
+      setHearing(false)
+    }
+  }
+  // The global push-to-talk shortcut (Ctrl+Shift+Space) starts talking, or stops whatever is recording.
+  const recordRef = useRef(record)
+  recordRef.current = record
+  useEffect(() => api.onTalkToggle(() => void recordRef.current('talk')), [])
+
+  // Guide mode: Galaxy steps aside and the companion points at the next thing to click, one step at a time.
+  const guideMe = (): void => {
+    const goal = prompt.trim()
+    if (!goal) return
+    setPrompt('')
+    add({ kind: 'you', text: goal }, { kind: 'tool', text: 'Guide mode: follow the ring on your screen, then press Next' })
+    api.startGuide(goal).catch((e) => add({ kind: 'error', text: errorText(e) }))
+  }
+
   return (
     <aside className="agent" aria-label="Agent" hidden={hidden}>
       <header>
@@ -161,9 +206,30 @@ export function Agent({ hidden, notes, onClose, onStart, onDone }: Props) {
               </button>
             )
           )}
+          {version !== null && (
+            <button type="button" onClick={guideMe} disabled={busy || !prompt.trim() || version === undefined} title="Claude looks at your screen and points at each step">
+              Guide me
+            </button>
+          )}
           <button type="button" onClick={() => void act(api.undoAgent, 'Restored')} disabled={busy || !canUndo}>
             Undo last change
           </button>
+        </div>
+        <div className="agent-actions">
+          {version !== null && (
+            <button type="button" className={recording === 'talk' ? 'recording' : undefined} onClick={() => void record('talk')} disabled={busy || hearing || recording === 'note'}>
+              {recording === 'talk' ? 'Stop listening' : 'Talk'}
+            </button>
+          )}
+          <button type="button" className={recording === 'note' ? 'recording' : undefined} onClick={() => void record('note')} disabled={busy || hearing || recording === 'talk'}>
+            {recording === 'note' ? 'Stop and save' : 'Voice note'}
+          </button>
+          {recording && (
+            <span className="rec" role="status">
+              <span className="rec-dot" aria-hidden="true" /> Recording
+            </span>
+          )}
+          {hearing && <span className="muted">Turning speech into text…</span>}
         </div>
       </form>
 
@@ -263,6 +329,36 @@ function N8n({ notes, onSuggest }: { notes: Note[]; onSuggest: (text: string) =>
       {error && <p className="line error">{error}</p>}
     </details>
   )
+}
+
+/** Records from the microphone; stop() returns mono 16 kHz samples, the format Whisper expects. */
+function useRecorder() {
+  const current = useRef<{ recorder: MediaRecorder; chunks: Blob[]; stream: MediaStream } | null>(null)
+  const start = async (): Promise<void> => {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    const recorder = new MediaRecorder(stream)
+    const chunks: Blob[] = []
+    recorder.ondataavailable = (e) => chunks.push(e.data)
+    recorder.start()
+    current.current = { recorder, chunks, stream }
+  }
+  const stop = async (): Promise<Float32Array> => {
+    const rec = current.current
+    if (!rec) throw new Error('Not recording')
+    current.current = null
+    await new Promise((done) => {
+      rec.recorder.onstop = done
+      rec.recorder.stop()
+    })
+    for (const track of rec.stream.getTracks()) track.stop()
+    const context = new AudioContext({ sampleRate: 16_000 })
+    try {
+      return (await context.decodeAudioData(await new Blob(rec.chunks).arrayBuffer())).getChannelData(0)
+    } finally {
+      void context.close()
+    }
+  }
+  return { start, stop }
 }
 
 /** Optional Jev key, and filing loose notes into constellations. */

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AgentEvent, GalaxyApi, Vault } from '../shared/types'
+import type { AgentEvent, GalaxyApi } from '../shared/types'
 
 const api: GalaxyApi = {
   lastVault: () => ipcRenderer.invoke('vault:last'),
@@ -27,11 +27,23 @@ const api: GalaxyApi = {
   n8nStatus: () => ipcRenderer.invoke('n8n:status'),
   connectN8n: (url, token) => ipcRenderer.invoke('n8n:connect', url, token),
   shareVault: (on) => ipcRenderer.invoke('n8n:share', on),
-  onVaultChanged: (callback) => {
-    const listener = (_event: Electron.IpcRendererEvent, vault: Vault): void => callback(vault)
-    ipcRenderer.on('vault:changed', listener)
-    return () => ipcRenderer.removeListener('vault:changed', listener)
-  }
+  onVaultChanged: (callback) => listen('vault:changed', callback),
+  transcribe: (audio) => ipcRenderer.invoke('speech:transcribe', audio),
+  saveVoiceNote: (text) => ipcRenderer.invoke('voice:save', text),
+  setListening: (on) => ipcRenderer.send('companion:listening', on),
+  onTalkToggle: (callback) => listen('talk:toggle', callback),
+  startGuide: (goal) => ipcRenderer.invoke('guide:start', goal),
+  nextGuide: () => ipcRenderer.invoke('guide:next'),
+  stopGuide: () => ipcRenderer.send('guide:stop'),
+  setOverlayInteractive: (on) => ipcRenderer.send('companion:interactive', on),
+  onCompanion: (callback) => listen('companion:state', callback)
+}
+
+/** Subscribes to a main-process event; returns the unsubscribe function. */
+function listen<T>(channel: string, callback: (value: T) => void): () => void {
+  const listener = (_event: Electron.IpcRendererEvent, value: T): void => callback(value)
+  ipcRenderer.on(channel, listener)
+  return () => ipcRenderer.removeListener(channel, listener)
 }
 
 contextBridge.exposeInMainWorld('galaxy', api)
