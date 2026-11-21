@@ -1,5 +1,5 @@
-/** A note, with its path relative to the vault root using "/" separators. */
-export type Note = { path: string; content: string }
+/** A note, with its path relative to the vault root using "/" separators, and last-modified time in ms. */
+export type Note = { path: string; content: string; mtime: number }
 
 export type Vault = { root: string; notes: Note[] }
 

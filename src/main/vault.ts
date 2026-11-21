@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import type { Note } from '../shared/types'
 
@@ -27,7 +27,11 @@ export async function listNotes(root: string): Promise<Note[]> {
       const abs = join(dir, entry.name)
       if (entry.isDirectory()) await walk(abs)
       else if (entry.isFile() && entry.name.toLowerCase().endsWith('.md')) {
-        notes.push({ path: relative(root, abs).split(sep).join('/'), content: await readFile(abs, 'utf8') })
+        notes.push({
+          path: relative(root, abs).split(sep).join('/'),
+          content: await readFile(abs, 'utf8'),
+          mtime: (await stat(abs)).mtimeMs
+        })
       }
     }
   }

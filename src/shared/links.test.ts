@@ -3,9 +3,9 @@ import { test } from 'node:test'
 import { backlinks, buildTree, linkAt, parseLinks, resolveLink, search } from './links.ts'
 
 const notes = [
-  { path: 'Home.md', content: 'Start at [[Ideas#Top|my ideas]] and [[projects/Galaxy]].' },
-  { path: 'Ideas.md', content: '# Ideas\nBuild a galaxy.' },
-  { path: 'projects/Galaxy.md', content: 'Back to [[home]].' }
+  { path: 'Home.md', content: 'Start at [[Ideas#Top|my ideas]] and [[projects/Galaxy]].', mtime: 0 },
+  { path: 'Ideas.md', content: '# Ideas\nBuild a galaxy.', mtime: 0 },
+  { path: 'projects/Galaxy.md', content: 'Back to [[home]].', mtime: 0 }
 ]
 
 test('parseLinks reads targets and drops headings and aliases', () => {

@@ -1,15 +1,25 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { backlinks, buildTree, noteName, resolveLink, search } from '../../shared/links'
 import type { Vault } from '../../shared/types'
+import { Dashboard } from './Dashboard'
 import { Editor } from './Editor'
+import { Galaxy } from './Galaxy'
 import { Tree } from './Tree'
 
 const api = window.galaxy
 const SAVE_DELAY_MS = 400
 
+type View = 'galaxy' | 'notes' | 'dashboard'
+const VIEWS: [View, string][] = [
+  ['galaxy', 'Galaxy'],
+  ['notes', 'Notes'],
+  ['dashboard', 'Dashboard']
+]
+
 export default function App() {
   const [vault, setVault] = useState<Vault | null>(null)
   const [loading, setLoading] = useState(true)
+  const [view, setView] = useState<View>('galaxy')
   const [current, setCurrent] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [newName, setNewName] = useState('')
@@ -51,6 +61,7 @@ export default function App() {
         setVault(v)
         setCurrent(null)
         setQuery('')
+        setView('galaxy')
       },
       (e: Error) => setError(e.message)
     )
@@ -59,12 +70,18 @@ export default function App() {
   const open = (path: string): void => {
     flush()
     setCurrent(path)
+    setView('notes')
+  }
+
+  const switchView = (next: View): void => {
+    flush()
+    setView(next)
   }
 
   const edit = (content: string): void => {
     if (!current) return
     const path = current
-    setVault((v) => v && { ...v, notes: v.notes.map((n) => (n.path === path ? { ...n, content } : n)) })
+    setVault((v) => v && { ...v, notes: v.notes.map((n) => (n.path === path ? { ...n, content, mtime: Date.now() } : n)) })
     pending.current = { path, content }
     window.clearTimeout(timer.current)
     timer.current = window.setTimeout(flush, SAVE_DELAY_MS)
@@ -73,7 +90,7 @@ export default function App() {
   const create = async (path: string): Promise<void> => {
     try {
       await api.createNote(path)
-      setVault((v) => v && { ...v, notes: [...v.notes, { path, content: '' }] })
+      setVault((v) => v && { ...v, notes: [...v.notes, { path, content: '', mtime: Date.now() }] })
       open(path)
     } catch (e) {
       setError(`Could not create ${path}: ${(e as Error).message}`)
@@ -117,7 +134,7 @@ export default function App() {
     )
   }
 
-  return (
+  const notesView = (
     <div className="app">
       <aside className="sidebar" aria-label="Notes">
         <header className="vault-name">
@@ -149,7 +166,6 @@ export default function App() {
       </aside>
 
       <main className="editor">
-        {errorBar}
         {note ? (
           <>
             <h1 className="note-title">{noteName(note.path)}</h1>
@@ -175,6 +191,23 @@ export default function App() {
           ))}
         <p className="hint">Ctrl+click a [[link]] to follow it.</p>
       </aside>
+    </div>
+  )
+
+  return (
+    <div className="shell">
+      {view === 'galaxy' && <Galaxy key={vault.root} notes={notes} onOpenNote={open} onOpenDashboard={() => switchView('dashboard')} />}
+      {view === 'dashboard' && <Dashboard notes={notes} onOpenNote={open} />}
+      {view === 'notes' && notesView}
+      {errorBar}
+      <nav className="views" aria-label="Views">
+        {VIEWS.map(([id, label]) => (
+          <button key={id} aria-current={view === id ? 'page' : undefined} onClick={() => switchView(id)}>
+            <span className="dot" aria-hidden="true" />
+            {label}
+          </button>
+        ))}
+      </nav>
     </div>
   )
 }
