@@ -1,9 +1,12 @@
 :root {
   color-scheme: dark;
   --bg: #05060a;
+  --panel: #0b0d14;
+  --line: #1c2030;
   --text: #e8e6e3;
   --muted: #8a8f98;
   --glow: #f5c27a;
+  --danger: #ff8a80;
 }
 
 * {
@@ -23,6 +26,47 @@ body {
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+
+button:hover {
+  border-color: var(--muted);
+}
+
+:focus-visible {
+  outline: 2px solid var(--glow);
+  outline-offset: 2px;
+}
+
+input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--danger);
+  margin: 12px 32px;
+}
+
+/* Welcome screen */
 .space {
   height: 100%;
   display: grid;
@@ -30,6 +74,17 @@ body {
   justify-items: center;
   gap: 12px;
   background: radial-gradient(circle at 50% 45%, #1a1408 0%, var(--bg) 55%);
+}
+
+.space h1 {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.space p {
+  margin: 0;
 }
 
 /* Placeholder for the black hole: a dark core with a warm ring. */
@@ -44,14 +99,136 @@ body {
   margin-bottom: 24px;
 }
 
-h1 {
-  margin: 0;
-  font-size: 32px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+.primary {
+  margin-top: 12px;
+  border-color: var(--glow);
+  padding: 8px 18px;
 }
 
-p {
+/* Main layout: files | editor | backlinks */
+.app {
+  height: 100%;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) 260px;
+}
+
+.sidebar,
+.backlinks {
+  background: var(--panel);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.sidebar {
+  border-right: 1px solid var(--line);
+}
+
+.backlinks {
+  border-left: 1px solid var(--line);
+}
+
+.vault-name {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.vault-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.files {
+  margin-top: 4px;
+}
+
+.tree {
+  list-style: none;
   margin: 0;
+  padding: 0;
+}
+
+.tree .tree {
+  padding-left: 14px;
+}
+
+.tree summary {
+  cursor: pointer;
+  padding: 3px 6px;
+  color: var(--muted);
+}
+
+.tree button,
+.hit {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  padding: 3px 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree button:hover,
+.hit:hover {
+  background: var(--line);
+}
+
+.tree button.active {
+  background: var(--line);
+  color: var(--glow);
+}
+
+.hit span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.note-title {
+  width: 100%;
+  max-width: 760px;
+  margin: 32px auto 0;
+  padding: 0 32px;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.cm-host {
+  flex: 1;
+  min-height: 0;
+}
+
+.empty {
+  margin: auto;
+}
+
+.backlinks h2 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.hint {
+  margin-top: auto;
+  font-size: 12px;
   color: var(--muted);
 }
