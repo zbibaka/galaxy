@@ -496,3 +496,114 @@ input {
   font-size: 12px;
   color: var(--muted);
 }
+
+/* Agent panel */
+.agent {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  bottom: 64px;
+  z-index: 3;
+  width: min(380px, calc(100% - 24px));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.agent[hidden] {
+  display: none;
+}
+
+.agent header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.agent h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.agent a {
+  color: var(--glow);
+}
+
+.agent-log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agent-log .line {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.agent-log .you {
+  align-self: flex-end;
+  max-width: 90%;
+  padding: 6px 10px;
+  background: var(--line);
+  border-radius: 8px;
+}
+
+.agent-log .tool {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.agent-log .done {
+  color: var(--glow);
+  font-size: 13px;
+}
+
+.agent-log .error {
+  margin: 0;
+  color: var(--danger);
+}
+
+.agent textarea {
+  width: 100%;
+  resize: vertical;
+  font: inherit;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.agent-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.agent-actions .primary {
+  margin-top: 0;
+  padding: 4px 14px;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.views .agent-toggle {
+  margin-left: 4px;
+  border: 1px solid var(--line);
+}
+
+.views .agent-toggle[aria-pressed='true'] {
+  border-color: var(--glow);
+  color: var(--text);
+}

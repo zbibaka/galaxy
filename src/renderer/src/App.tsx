@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { backlinks, buildTree, noteName, resolveLink, search } from '../../shared/links'
-import type { Vault } from '../../shared/types'
+import type { AgentResult, Vault } from '../../shared/types'
+import { Agent } from './Agent'
 import { Dashboard } from './Dashboard'
 import { Editor } from './Editor'
 import { Galaxy } from './Galaxy'
@@ -24,14 +25,32 @@ export default function App() {
   const [query, setQuery] = useState('')
   const [newName, setNewName] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [agentOpen, setAgentOpen] = useState(false)
+  const [agentBusy, setAgentBusy] = useState(false)
+  // Bumped when the agent changes notes on disk, so the editor reloads the open note.
+  const [reloads, setReloads] = useState(0)
   const pending = useRef<{ path: string; content: string } | null>(null)
   const timer = useRef<number | undefined>(undefined)
 
-  const flush = (): void => {
+  const flush = (): Promise<void> => {
     window.clearTimeout(timer.current)
     const save = pending.current
     pending.current = null
-    if (save) api.writeNote(save.path, save.content).catch((e: Error) => setError(`Could not save ${save.path}: ${e.message}`))
+    if (!save) return Promise.resolve()
+    return api.writeNote(save.path, save.content).catch((e: Error) => setError(`Could not save ${save.path}: ${e.message}`))
+  }
+
+  const agentStart = (): Promise<void> => {
+    setAgentBusy(true)
+    return flush()
+  }
+
+  const agentDone = (result?: AgentResult): void => {
+    setAgentBusy(false)
+    if (!result) return
+    setVault(result.vault)
+    setReloads((n) => n + 1)
+    if (current && !result.vault.notes.some((n) => n.path === current)) setCurrent(null)
   }
 
   useEffect(() => {
@@ -139,7 +158,9 @@ export default function App() {
       <aside className="sidebar" aria-label="Notes">
         <header className="vault-name">
           <span title={vault.root}>{vault.root.split(/[\\/]/).filter(Boolean).pop()}</span>
-          <button onClick={pick}>Switch</button>
+          <button onClick={pick} disabled={agentBusy} title={agentBusy ? 'Wait for the agent to finish' : undefined}>
+            Switch
+          </button>
         </header>
         <input type="search" placeholder="Search notes" aria-label="Search notes" value={query} onChange={(e) => setQuery(e.target.value)} />
         <form onSubmit={submitNew}>
@@ -165,11 +186,12 @@ export default function App() {
         </nav>
       </aside>
 
-      <main className="editor">
+      {/* Locked while the agent works, so its writes and your typing never collide. */}
+      <main className="editor" inert={agentBusy}>
         {note ? (
           <>
             <h1 className="note-title">{noteName(note.path)}</h1>
-            <Editor path={note.path} doc={note.content} onChange={edit} onOpenLink={openLink} />
+            <Editor key={reloads} path={note.path} doc={note.content} onChange={edit} onOpenLink={openLink} />
           </>
         ) : (
           <p className="muted empty">Pick a note, or type a name on the left to create one.</p>
@@ -200,6 +222,7 @@ export default function App() {
       {view === 'dashboard' && <Dashboard notes={notes} onOpenNote={open} />}
       {view === 'notes' && notesView}
       {errorBar}
+      <Agent hidden={!agentOpen} onClose={() => setAgentOpen(false)} onStart={agentStart} onDone={agentDone} />
       <nav className="views" aria-label="Views">
         {VIEWS.map(([id, label]) => (
           <button key={id} aria-current={view === id ? 'page' : undefined} onClick={() => switchView(id)}>
@@ -207,6 +230,9 @@ export default function App() {
             {label}
           </button>
         ))}
+        <button className="agent-toggle" aria-pressed={agentOpen} onClick={() => setAgentOpen((o) => !o)}>
+          {agentBusy ? 'Agent working…' : 'Agent'}
+        </button>
       </nav>
     </div>
   )

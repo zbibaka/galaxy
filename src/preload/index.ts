@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { GalaxyApi } from '../shared/types'
+import type { AgentEvent, GalaxyApi } from '../shared/types'
 
 const api: GalaxyApi = {
   lastVault: () => ipcRenderer.invoke('vault:last'),
@@ -9,6 +9,15 @@ const api: GalaxyApi = {
   writeNoteSync: (path, content) => {
     const error: string | null = ipcRenderer.sendSync('note:write-sync', path, content)
     if (error) throw new Error(error)
+  },
+  agentStatus: () => ipcRenderer.invoke('agent:status'),
+  runAgent: (prompt) => ipcRenderer.invoke('agent:run', prompt),
+  stopAgent: () => ipcRenderer.send('agent:stop'),
+  undoAgent: () => ipcRenderer.invoke('agent:undo'),
+  onAgentEvent: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, e: AgentEvent): void => callback(e)
+    ipcRenderer.on('agent:event', listener)
+    return () => ipcRenderer.removeListener('agent:event', listener)
   }
 }
 
