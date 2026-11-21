@@ -660,3 +660,46 @@ button:disabled {
 .jev .error {
   margin: 8px 0 0;
 }
+
+.jev form input + input {
+  margin-top: 6px;
+}
+
+.agent-actions.wrap {
+  flex-wrap: wrap;
+  margin-top: 0;
+}
+
+.jev .suggestion {
+  display: block;
+  width: 100%;
+  margin-bottom: 4px;
+  text-align: left;
+  font-size: 13px;
+}
+
+.jev .check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.jev .check input {
+  width: auto;
+}
+
+.jev .share input {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
+/* With Jev and n8n open, the panel scrolls instead of squeezing the log away. */
+.agent {
+  overflow-y: auto;
+}
+
+.agent-log {
+  min-height: 140px;
+}

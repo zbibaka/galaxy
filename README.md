@@ -6,7 +6,7 @@ An open-source, local-first notes app where your notes are a galaxy.
 - Notes are stars, related notes form constellations, and a black hole sits at the center.
 - An optional AI companion (Claude, Jev, n8n) helps you work with your notes. Everything works without it.
 
-**Status:** Phase 4. You can open a vault folder, see it as a galaxy, take real notes and have Claude work on them, with Jev keeping it fast and safe:
+**Status:** Phase 5. You can open a vault folder, see it as a galaxy, take real notes, have Claude work on them with Jev keeping it fast and safe, and automate routines with n8n:
 
 - 3D galaxy view: notes are stars, top-level folders are constellations, a black hole sits in the middle. Click a star to open it; click the black hole for the dashboard
 - Dashboard: note and link counts, notes by day last edited, notes per constellation, most connected notes, recent activity
@@ -19,12 +19,18 @@ An open-source, local-first notes app where your notes are a galaxy.
   - **Router:** sends small, clear jobs to Claude's fast model and everything else to your default model
   - **Guardrail:** new notes are always written, but a change to an existing note that looks risky (it drops content you didn't ask to drop, or follows instructions written inside a note) waits for your **Allow** or **Deny**. If Jev can't check a change, it asks you rather than guessing
   - **Auto-filing:** **File loose notes** suggests which constellation each loose note belongs in; you pick which to move, and **Undo last change** works for moves too
+- n8n (optional, your own copy):
+  - **Claude builds workflows** in your n8n through n8n's MCP server. It can read your instance and create new workflows, which stay unpublished until you review them. Publishing, running, test runs, editing existing workflows and archiving are refused
+  - **Routines:** Galaxy spots dated notes you make every day or on the same weekday (like "Meeting 2026-11-16" every Monday) and offers to automate them. Starter automations: a daily note, a weekly review, and an inbox webhook
+  - **Share the vault with n8n:** an optional local endpoint (`http://127.0.0.1:47231/`, needs a token) gives n8n's MCP Client node the same vault tools. Notes n8n writes show up in the app right away
 
 ### Using the agent
 
 The agent uses [Claude Code](https://claude.com/claude-code) with your own Claude account; Galaxy never sees your login. Install it, run `claude` once in a terminal to sign in, then open the Agent panel from the bar at the bottom. Undo needs [Git](https://git-scm.com). Snapshots are kept in the app's data folder, never inside your vault.
 
 To turn on Jev, open **Jev (optional)** at the bottom of the Agent panel and paste a key from [typesafe.ai](https://typesafe.ai). The key is encrypted by your operating system and only used by the app itself. Without a key, everything works as before.
+
+To connect n8n (2.13 or newer; Galaxy does not include it), open **Instance-level MCP** in n8n's settings, turn on MCP access, and paste the server URL and an access token under **n8n (optional)** in the Agent panel. To let workflows read and write notes, tick **Let n8n read and write this vault** and add a Bearer Auth credential named "Galaxy vault" in n8n with the token shown. If n8n runs in Docker, it reaches the vault at `host.docker.internal` instead of `127.0.0.1`. n8n Cloud can build workflows but cannot reach a vault on your computer.
 
 ## Run it
 

@@ -6,6 +6,9 @@ export type Vault = { root: string; notes: Note[] }
 /** One line in the agent panel: what Claude said, a vault tool it used, an error, or a change waiting for approval. */
 export type AgentEvent = { kind: 'text' | 'tool' | 'error'; text: string } | { kind: 'approve'; text: string; id: number }
 
+/** n8n connection: its MCP URL when connected, and whether n8n may use the vault (with the URL and token to give it). */
+export type N8nStatus = { url: string | null; shareOn: boolean; shareUrl: string; shareToken: string | null }
+
 /** Jev's suggestion to move a loose note into a constellation (top-level folder). */
 export type Filing = { path: string; folder: string; confidence: number }
 
@@ -37,4 +40,11 @@ export interface GalaxyApi {
   suggestFiling(): Promise<Filing[]>
   /** Moves notes into their folders; undo with undoAgent. */
   fileNotes(moves: Filing[]): Promise<AgentResult>
+  n8nStatus(): Promise<N8nStatus>
+  /** Saves n8n's MCP URL and token (encrypted), or disconnects with null. */
+  connectN8n(url: string | null, token?: string): Promise<N8nStatus>
+  /** Starts or stops letting n8n read and write the vault. */
+  shareVault(on: boolean): Promise<N8nStatus>
+  /** Notes changed outside the app (by n8n); returns the unsubscribe function. */
+  onVaultChanged(callback: (vault: Vault) => void): () => void
 }

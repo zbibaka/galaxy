@@ -72,6 +72,18 @@ export default function App() {
   const results = useMemo(() => search(notes, query), [notes, query])
   const links = useMemo(() => (current ? backlinks(notes, current) : []), [notes, current])
 
+  // n8n changed notes on disk. Unsaved typing wins for the open note; otherwise the editor reloads it if it changed.
+  const outsideChange = useRef<(v: Vault) => void>(() => {})
+  outsideChange.current = (v) => {
+    if (agentBusy) return
+    const typing = pending.current
+    setVault(typing ? { ...v, notes: v.notes.map((n) => (n.path === typing.path ? { ...n, content: typing.content } : n)) } : v)
+    const fresh = note && v.notes.find((n) => n.path === note.path)
+    if (!typing && note && fresh?.content !== note.content) setReloads((n) => n + 1)
+    if (current && !fresh) setCurrent(null)
+  }
+  useEffect(() => api.onVaultChanged((v) => outsideChange.current(v)), [])
+
   const pick = (): void => {
     flush()
     api.pickVault().then(
@@ -222,7 +234,7 @@ export default function App() {
       {view === 'dashboard' && <Dashboard notes={notes} onOpenNote={open} />}
       {view === 'notes' && notesView}
       {errorBar}
-      <Agent hidden={!agentOpen} onClose={() => setAgentOpen(false)} onStart={agentStart} onDone={agentDone} />
+      <Agent hidden={!agentOpen} notes={notes} onClose={() => setAgentOpen(false)} onStart={agentStart} onDone={agentDone} />
       <nav className="views" aria-label="Views">
         {VIEWS.map(([id, label]) => (
           <button key={id} aria-current={view === id ? 'page' : undefined} onClick={() => switchView(id)}>

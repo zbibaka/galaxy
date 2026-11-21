@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AgentEvent, GalaxyApi } from '../shared/types'
+import type { AgentEvent, GalaxyApi, Vault } from '../shared/types'
 
 const api: GalaxyApi = {
   lastVault: () => ipcRenderer.invoke('vault:last'),
@@ -23,7 +23,15 @@ const api: GalaxyApi = {
   jevStatus: () => ipcRenderer.invoke('jev:status'),
   setJevKey: (key) => ipcRenderer.invoke('jev:set-key', key),
   suggestFiling: () => ipcRenderer.invoke('jev:suggest'),
-  fileNotes: (moves) => ipcRenderer.invoke('jev:file', moves)
+  fileNotes: (moves) => ipcRenderer.invoke('jev:file', moves),
+  n8nStatus: () => ipcRenderer.invoke('n8n:status'),
+  connectN8n: (url, token) => ipcRenderer.invoke('n8n:connect', url, token),
+  shareVault: (on) => ipcRenderer.invoke('n8n:share', on),
+  onVaultChanged: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, vault: Vault): void => callback(vault)
+    ipcRenderer.on('vault:changed', listener)
+    return () => ipcRenderer.removeListener('vault:changed', listener)
+  }
 }
 
 contextBridge.exposeInMainWorld('galaxy', api)

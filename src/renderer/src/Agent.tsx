@@ -1,5 +1,7 @@
-import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react'
-import type { AgentEvent, AgentResult, Filing } from '../../shared/types'
+import { type FormEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { noteName } from '../../shared/links'
+import { findRoutines, type Routine } from '../../shared/routines'
+import type { AgentEvent, AgentResult, Filing, N8nStatus, Note } from '../../shared/types'
 
 const api = window.galaxy
 
@@ -10,6 +12,7 @@ const errorText = (e: unknown): string => (e as Error).message.replace(/^Error i
 
 type Props = {
   hidden: boolean
+  notes: Note[]
   onClose: () => void
   /** Saves pending typing and locks the editor before the agent touches notes. */
   onStart: () => Promise<void>
@@ -18,7 +21,7 @@ type Props = {
 }
 
 /** Ask Claude to work on the vault. Runs only when the user presses Run; each run can be undone. */
-export function Agent({ hidden, onClose, onStart, onDone }: Props) {
+export function Agent({ hidden, notes, onClose, onStart, onDone }: Props) {
   const [version, setVersion] = useState<string | null | undefined>(undefined)
   const [prompt, setPrompt] = useState('')
   const [busy, setBusy] = useState(false)
@@ -28,6 +31,13 @@ export function Agent({ hidden, onClose, onStart, onDone }: Props) {
   const [decided, setDecided] = useState<Record<number, string>>({})
   const add = (...more: Line[]): void => setLines((l) => [...l, ...more])
   const log = useRef<HTMLDivElement>(null)
+  const input = useRef<HTMLTextAreaElement>(null)
+
+  // Fills in a suggested request for the user to read, edit and run.
+  const suggest = (text: string): void => {
+    setPrompt(text)
+    input.current?.focus()
+  }
 
   useEffect(() => {
     api.agentStatus().then(setVersion, () => setVersion(null))
@@ -129,6 +139,7 @@ export function Agent({ hidden, onClose, onStart, onDone }: Props) {
       <form onSubmit={run}>
         {version !== null && (
           <textarea
+            ref={input}
             rows={3}
             placeholder="What should Claude do? Enter to run, Shift+Enter for a new line"
             aria-label="Agent request"
@@ -157,7 +168,100 @@ export function Agent({ hidden, onClose, onStart, onDone }: Props) {
       </form>
 
       <Jev busy={busy} onMove={(moves) => act(() => api.fileNotes(moves), 'Moved')} />
+      {version !== null && <N8n notes={notes} onSuggest={suggest} />}
     </aside>
+  )
+}
+
+const STARTERS: [string, string][] = [
+  ['Daily note', 'Build an n8n workflow that creates today\'s daily note every morning at 8:00, named YYYY-MM-DD in a "Daily" folder, with the headings Plan, Notes and Done.'],
+  ['Weekly review', 'Build an n8n workflow that creates a "Weekly review YYYY-MM-DD" note every Friday at 17:00 with the headings Wins, Lessons and Next week.'],
+  ['Inbox by webhook', 'Build an n8n workflow with a webhook that adds any text it receives as a new line at the end of Inbox.md.']
+]
+
+function routinePrompt(r: Routine): string {
+  const when = r.cadence === 'daily' ? 'every morning at 8:00' : `every ${r.weekday} at 8:00`
+  return `Build an n8n workflow that creates the next "${r.name}" note ${when} in ${r.folder ? `the "${r.folder}" folder` : 'the vault root'}, named like "${noteName(r.example)}" with that day's date. Read "${r.example}" first and reuse its headings.`
+}
+
+/** Optional n8n connection: routines worth automating, starter automations, and sharing the vault with n8n. */
+function N8n({ notes, onSuggest }: { notes: Note[]; onSuggest: (text: string) => void }) {
+  const [status, setStatus] = useState<N8nStatus | null>(null)
+  const [url, setUrl] = useState('')
+  const [token, setToken] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const routines = useMemo(() => findRoutines(notes), [notes])
+
+  useEffect(() => {
+    api.n8nStatus().then(setStatus, (e) => setError(errorText(e)))
+  }, [])
+
+  const attempt = (work: Promise<N8nStatus>): void => {
+    setError(null)
+    work.then(setStatus, (e) => setError(errorText(e)))
+  }
+
+  const connect = (event: FormEvent): void => {
+    event.preventDefault()
+    attempt(api.connectN8n(url, token).then((s) => (setToken(''), s)))
+  }
+
+  return (
+    <details className="jev">
+      <summary>n8n {status?.url ? 'is connected' : '(optional)'}</summary>
+      {status?.url ? (
+        <>
+          <p className="muted">Claude can build n8n workflows for you. They stay switched off until you review and publish them in n8n.</p>
+          {routines.length > 0 && <p>Routines in your notes:</p>}
+          {routines.slice(0, 3).map((r) => (
+            <button key={r.example} className="suggestion" onClick={() => onSuggest(routinePrompt(r))}>
+              Automate "{r.name}" {r.cadence === 'daily' ? 'every day' : `every ${r.weekday}`} ({r.count} so far)
+            </button>
+          ))}
+          <p>Starter automations:</p>
+          <div className="agent-actions wrap">
+            {STARTERS.map(([label, text]) => (
+              <button key={label} onClick={() => onSuggest(text)}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <label className="check">
+            <input type="checkbox" checked={status.shareOn} onChange={(e) => attempt(api.shareVault(e.target.checked))} />
+            Let n8n read and write this vault
+          </label>
+          {status.shareOn && status.shareToken && (
+            <div className="share">
+              <p className="muted">
+                In n8n, add a Bearer Auth credential named "Galaxy vault" with this token. n8n reaches the vault at {status.shareUrl}, or
+                at host.docker.internal instead of 127.0.0.1 if n8n runs in Docker.
+              </p>
+              <input readOnly value={status.shareToken} aria-label="Token for n8n" onFocus={(e) => e.target.select()} />
+            </div>
+          )}
+          <div className="agent-actions">
+            <button onClick={() => attempt(api.connectN8n(null))}>Disconnect</button>
+          </div>
+        </>
+      ) : (
+        status && (
+          <form onSubmit={connect}>
+            <p className="muted">
+              Use your own n8n (Galaxy does not include it). In n8n, open Settings, then Instance-level MCP, turn on MCP access, and copy
+              the server URL and an access token.
+            </p>
+            <input placeholder="n8n MCP URL, ending in /mcp-server/http" aria-label="n8n MCP URL" value={url} onChange={(e) => setUrl(e.target.value)} />
+            <input type="password" autoComplete="off" placeholder="n8n MCP access token" aria-label="n8n MCP access token" value={token} onChange={(e) => setToken(e.target.value)} />
+            <div className="agent-actions">
+              <button className="primary" type="submit" disabled={!url.trim() || !token.trim()}>
+                Connect n8n
+              </button>
+            </div>
+          </form>
+        )
+      )}
+      {error && <p className="line error">{error}</p>}
+    </details>
   )
 }
 
