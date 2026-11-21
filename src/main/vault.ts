@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
-import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import type { Note } from '../shared/types'
 
@@ -55,6 +55,15 @@ export function writeNoteSync(root: string, rel: unknown, content: unknown): voi
   assertText(content)
   mkdirSync(dirname(abs), { recursive: true })
   writeFileSync(abs, content, 'utf8')
+}
+
+/** Moves a note, creating folders as needed; fails if the target exists so nothing is overwritten. */
+export async function moveNote(root: string, from: unknown, to: unknown): Promise<void> {
+  const src = resolveNote(root, from)
+  const dst = resolveNote(root, to)
+  await mkdir(dirname(dst), { recursive: true })
+  if (await stat(dst).then(() => true, () => false)) throw new Error(`${String(to)} already exists`)
+  await rename(src, dst)
 }
 
 /** Creates an empty note; fails if one already exists so nothing is overwritten. */

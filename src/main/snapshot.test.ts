@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rename, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -24,6 +24,21 @@ test('undo restores edited notes, deletes created ones and leaves the vault with
   assert.equal(existsSync(join(root, 'New note.md')), false)
   assert.equal(await readFile(join(root, 'Other.md'), 'utf8'), 'untouched')
   assert.equal(existsSync(join(root, '.git')), false)
+})
+
+test('undo puts a moved note back where it was', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'galaxy-vault-'))
+  const snap = snapshots(root, join(await mkdtemp(join(tmpdir(), 'galaxy-git-')), 'repo'))
+  await writeFile(join(root, 'Inbox.md'), 'a note long enough for git to see a rename')
+  await mkdir(join(root, 'Projects'))
+  const before = await snap.take('before')
+  await rename(join(root, 'Inbox.md'), join(root, 'Projects', 'Inbox.md'))
+  const after = await snap.take('after')
+
+  assert.deepEqual((await snap.changed(before, after)).sort(), ['Inbox.md', 'Projects/Inbox.md'])
+  await snap.undo(before, after)
+  assert.equal(await readFile(join(root, 'Inbox.md'), 'utf8'), 'a note long enough for git to see a rename')
+  assert.equal(existsSync(join(root, 'Projects', 'Inbox.md')), false)
 })
 
 test('undo refuses when a changed note was edited again afterwards', async () => {

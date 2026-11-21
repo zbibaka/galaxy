@@ -6,7 +6,7 @@ export const HOLE = 'hole'
 const DAY = 86_400_000
 
 /** A note's constellation: its top-level folder, or "Loose stars" for notes at the vault root. */
-// shortcut: folders stand in for constellations until Phase 4 groups notes by meaning.
+// Constellations are folders, so they stay plain files on disk; Jev's auto-filing moves loose notes into them by meaning.
 export const constellationOf = (path: string): string => (path.includes('/') ? path.slice(0, path.indexOf('/')) : LOOSE)
 
 /** Links between notes that resolve to a real note, each pair once, no self-links. */

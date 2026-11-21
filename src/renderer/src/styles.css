@@ -607,3 +607,56 @@ button:disabled {
   border-color: var(--glow);
   color: var(--text);
 }
+
+.agent-log .approve {
+  padding: 8px 10px;
+  border: 1px solid var(--glow);
+  border-radius: 8px;
+}
+
+.agent-log .approve p {
+  margin: 0;
+}
+
+.agent-log .approve .agent-actions {
+  margin-top: 6px;
+}
+
+.jev {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.jev summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.jev p {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.filing {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.filing label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.filing input {
+  width: auto;
+}
+
+.jev .error {
+  margin: 8px 0 0;
+}

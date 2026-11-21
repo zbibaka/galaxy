@@ -18,7 +18,12 @@ const api: GalaxyApi = {
     const listener = (_event: Electron.IpcRendererEvent, e: AgentEvent): void => callback(e)
     ipcRenderer.on('agent:event', listener)
     return () => ipcRenderer.removeListener('agent:event', listener)
-  }
+  },
+  decideAgent: (id, allow) => ipcRenderer.send('agent:decide', id, allow),
+  jevStatus: () => ipcRenderer.invoke('jev:status'),
+  setJevKey: (key) => ipcRenderer.invoke('jev:set-key', key),
+  suggestFiling: () => ipcRenderer.invoke('jev:suggest'),
+  fileNotes: (moves) => ipcRenderer.invoke('jev:file', moves)
 }
 
 contextBridge.exposeInMainWorld('galaxy', api)

@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { createNote, listNotes, resolveNote, writeNote } from './vault.ts'
+import { createNote, listNotes, moveNote, resolveNote, writeNote } from './vault.ts'
 
 test('resolveNote refuses paths outside the vault or not ending in .md', () => {
   const root = join(tmpdir(), 'vault')
@@ -25,4 +25,10 @@ test('notes round-trip and hidden folders are skipped', async () => {
   const notes = await listNotes(root)
   assert.deepEqual(notes.map((n) => n.path).sort(), ['Empty.md', 'deep/Note.md'])
   assert.equal(await readFile(join(root, 'deep', 'Note.md'), 'utf8'), 'hello')
+
+  await moveNote(root, 'Empty.md', 'Projects/Empty.md')
+  assert.deepEqual((await listNotes(root)).map((n) => n.path).sort(), ['Projects/Empty.md', 'deep/Note.md'])
+  await writeNote(root, 'Other.md', 'x')
+  await assert.rejects(moveNote(root, 'Other.md', 'Projects/Empty.md'), /already exists/)
+  await assert.rejects(moveNote(root, 'Other.md', '../out.md'), /outside the vault/)
 })

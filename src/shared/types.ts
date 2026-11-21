@@ -3,8 +3,11 @@ export type Note = { path: string; content: string; mtime: number }
 
 export type Vault = { root: string; notes: Note[] }
 
-/** One line in the agent panel: what Claude said, a vault tool it used, or an error. */
-export type AgentEvent = { kind: 'text' | 'tool' | 'error'; text: string }
+/** One line in the agent panel: what Claude said, a vault tool it used, an error, or a change waiting for approval. */
+export type AgentEvent = { kind: 'text' | 'tool' | 'error'; text: string } | { kind: 'approve'; text: string; id: number }
+
+/** Jev's suggestion to move a loose note into a constellation (top-level folder). */
+export type Filing = { path: string; folder: string; confidence: number }
 
 /** After an agent run or undo: the notes it changed, the reloaded vault, and the error if it failed. */
 export type AgentResult = { changed: string[]; vault: Vault; error?: string }
@@ -25,4 +28,13 @@ export interface GalaxyApi {
   undoAgent(): Promise<AgentResult>
   /** Calls back for each step of the running agent; returns the unsubscribe function. */
   onAgentEvent(callback: (event: AgentEvent) => void): () => void
+  /** Answers an 'approve' event: let the paused change run, or refuse it. */
+  decideAgent(id: number, allow: boolean): void
+  /** Whether a Jev API key is saved. */
+  jevStatus(): Promise<boolean>
+  /** Saves a Jev API key (encrypted), or removes it with null. */
+  setJevKey(key: string | null): Promise<void>
+  suggestFiling(): Promise<Filing[]>
+  /** Moves notes into their folders; undo with undoAgent. */
+  fileNotes(moves: Filing[]): Promise<AgentResult>
 }

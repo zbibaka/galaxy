@@ -35,7 +35,8 @@ export function snapshots(root: string, gitDir: string) {
 
   /** Notes that differ between two snapshots. */
   async function changed(before: string, after: string): Promise<string[]> {
-    return (await git('diff', '--name-only', '-z', before, after)).split('\0').filter(Boolean)
+    // --no-renames: a moved note must list both its old and new path, so undo restores one and removes the other.
+    return (await git('diff', '--name-only', '--no-renames', '-z', before, after)).split('\0').filter(Boolean)
   }
 
   /**
@@ -47,8 +48,9 @@ export function snapshots(root: string, gitDir: string) {
     const paths = await changed(before, after)
     if (!paths.length) return []
     const specs = paths.map((p) => `:(literal)${p}`)
-    await git('add', '-A', '--', ...specs)
-    const since = (await git('diff', '--name-only', '-z', '--cached', after, '--', ...specs)).split('\0').filter(Boolean)
+    // Stage all notes, not just `specs`: git refuses a pathspec that no longer exists anywhere (a moved note's old path).
+    await git('add', '-A', '--', ':(glob)**/*.md')
+    const since = (await git('diff', '--name-only', '--no-renames', '-z', '--cached', after, '--', ...specs)).split('\0').filter(Boolean)
     if (since.length) {
       await git('reset', '-q', after, '--', ...specs)
       throw new Error(`These notes changed after the agent ran, so undo was stopped: ${since.join(', ')}`)

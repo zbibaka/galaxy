@@ -20,8 +20,25 @@ const TOOLS = [
     name: 'write_note',
     description: 'Creates a note or replaces its whole text. Use [[Note name]] to link notes. Folders are created as needed.',
     inputSchema: { type: 'object', properties: { path, content: { type: 'string' } }, required: ['path', 'content'] }
+  },
+  {
+    name: 'approve',
+    description: 'Internal: Galaxy uses this to check changes before they run. Never call it yourself.',
+    inputSchema: { type: 'object', properties: { tool_name: { type: 'string' }, input: { type: 'object' } }, required: ['tool_name', 'input'] }
   }
 ]
+
+// Asks the Galaxy app (which started this run) whether a tool call may go ahead. Denies when there is no app to ask.
+async function approve(args: Args): Promise<string> {
+  const url = process.env['GALAXY_APPROVE_URL']
+  if (!url) return JSON.stringify({ behavior: 'deny', message: 'Galaxy is not there to approve this change' })
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${process.env['GALAXY_APPROVE_TOKEN']}`, 'content-type': 'application/json' },
+    body: JSON.stringify(args)
+  })
+  return res.ok ? res.text() : JSON.stringify({ behavior: 'deny', message: `Galaxy refused the check (${res.status})` })
+}
 
 type Args = Record<string, unknown>
 
@@ -38,6 +55,8 @@ async function callTool(root: string, name: string, args: Args): Promise<string>
     case 'write_note':
       await writeNote(root, args['path'], args['content'])
       return `Saved ${String(args['path'])}`
+    case 'approve':
+      return approve(args)
     default:
       throw new Error(`Unknown tool: ${name}`)
   }

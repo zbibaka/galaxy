@@ -52,19 +52,32 @@ let child: ChildProcess | null = null
 
 export const stopAgent = (): void => void child?.kill()
 
+const READ_TOOLS = ['list_notes', 'read_note', 'search_notes', 'backlinks'].map((t) => `mcp__vault__${t}`)
+
 /**
  * Runs Claude Code headless on the vault with the user's own login. Built-in tools are off,
  * so it can only reach the vault MCP server: read, search and write notes, nothing else on the PC.
+ * Reads run freely; every write goes through the vault server's `approve` tool, which asks the app (see guard.ts).
  */
-export async function runAgent(opts: { root: string; prompt: string; workDir: string; mcpScript: string; onEvent: (e: AgentEvent) => void }): Promise<void> {
+export async function runAgent(opts: {
+  root: string
+  prompt: string
+  workDir: string
+  mcpScript: string
+  approveEnv: Record<string, string>
+  model?: string
+  onEvent: (e: AgentEvent) => void
+}): Promise<void> {
   await mkdir(opts.workDir, { recursive: true })
   const config = join(opts.workDir, 'mcp.json')
-  const vault = { command: process.execPath, args: [opts.mcpScript, opts.root], env: { ELECTRON_RUN_AS_NODE: '1' } }
+  const vault = { command: process.execPath, args: [opts.mcpScript, opts.root], env: { ELECTRON_RUN_AS_NODE: '1', ...opts.approveEnv } }
   await writeFile(config, JSON.stringify({ mcpServers: { vault } }), 'utf8')
 
   // Runs from workDir, not the vault, and loads only user settings, so a vault cannot bring its own hooks or CLAUDE.md.
   const args = ['-p', '--output-format', 'stream-json', '--verbose', '--mcp-config', config, '--strict-mcp-config', '--tools', '',
-    '--allowedTools', 'mcp__vault', '--setting-sources', 'user', '--no-session-persistence', '--append-system-prompt', SYSTEM]
+    '--allowedTools', ...READ_TOOLS, '--permission-prompt-tool', 'mcp__vault__approve',
+    '--setting-sources', 'user', '--no-session-persistence', '--append-system-prompt', SYSTEM]
+  if (opts.model) args.push('--model', opts.model)
 
   await new Promise<void>((done, fail) => {
     const proc = spawn(CLI, args, { cwd: opts.workDir, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })

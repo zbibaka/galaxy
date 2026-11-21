@@ -15,7 +15,8 @@ test('vault MCP tools read, write, search and stay inside the vault', async () =
   await writeFile(join(root, 'Space.md'), 'Stars and [[Moon]]')
 
   const list = (await handle(root, { id: 1, method: 'tools/list' })) as { result: { tools: { name: string }[] } }
-  assert.deepEqual(list.result.tools.map((t) => t.name), ['list_notes', 'read_note', 'search_notes', 'backlinks', 'write_note'])
+  assert.deepEqual(list.result.tools.map((t) => t.name), ['list_notes', 'read_note', 'search_notes', 'backlinks', 'write_note', 'approve'])
+  assert.match((await call(root, 'approve', { tool_name: 'mcp__vault__write_note', input: {} })).result.content[0]!.text, /"deny"/)
 
   assert.equal((await call(root, 'write_note', { path: 'Moon.md', content: 'Rocky' })).result.content[0]!.text, 'Saved Moon.md')
   assert.equal(await readFile(join(root, 'Moon.md'), 'utf8'), 'Rocky')
